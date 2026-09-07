@@ -26,7 +26,7 @@ class RuleloomBookInterface:
 
 class RuleloomBook(gl.Contract):
     books:TreeMap[u256,str]; clauses:TreeMap[str,str]; applications:TreeMap[u256,str]; evaluations:TreeMap[u256,str]; latest_book:TreeMap[str,u256]
-    last_application:TreeMap[str,u256]; next_book_id:u256; next_application_id:u256; next_evaluation_id:u256
+    last_application:TreeMap[str,u256]; last_submission:TreeMap[str,u256]; next_book_id:u256; next_application_id:u256; next_evaluation_id:u256
     passbook_address:Address; deployer:Address
     def __init__(self,passbook_address:Address):
         self.passbook_address=passbook_address; self.deployer=gl.message.sender_address; self.next_book_id=u256(1); self.next_application_id=u256(1); self.next_evaluation_id=u256(1)
@@ -69,13 +69,13 @@ class RuleloomBook(gl.Contract):
     def submit_application(self,book_id:u256,definition_hash:str,statement:str,requested_duration:u256,evidence:DynArray[str])->u256:
         b=self._book(book_id); now=_now(); key=str(book_id)+":"+str(gl.message.sender_address).lower()
         if b["status"]!="SEALED" or definition_hash!=b["definition_hash"] or not(8<=len(statement)<=1000) or not(0<int(requested_duration)<=b["max_duration"]) or len(evidence)>b["max_evidence"]: raise gl.vm.UserError("application does not match sealed policy")
-        if now<int(self.last_application.get(key,u256(0)))+b["cooldown"]: raise gl.vm.UserError("application cooldown")
+        if now<int(self.last_submission.get(key,u256(0)))+b["cooldown"]: raise gl.vm.UserError("application cooldown")
         urls=[]
         for url in evidence:
             normalized=_canonical_url(url)
             if normalized in urls: raise gl.vm.UserError("duplicate evidence")
             urls.append(normalized)
-        aid=self.next_application_id; self.next_application_id+=u256(1); self.last_application[key]=u256(now)
+        aid=self.next_application_id; self.next_application_id+=u256(1); self.last_submission[key]=u256(now)
         self.applications[aid]=_put({"id":int(aid),"rulebook_id":int(book_id),"definition_hash":definition_hash,"applicant":str(gl.message.sender_address),"statement":statement,"requested_duration":int(requested_duration),"evidence":urls,"submitted_at":now,"status":"SUBMITTED","evaluation_id":0})
         self.last_application[key]=aid
         return aid
