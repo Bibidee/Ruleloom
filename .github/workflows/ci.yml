@@ -6,17 +6,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: 22, cache: npm, cache-dependency-path: ruleloom/package-lock.json}
+        with: {node-version: 22, cache: npm, cache-dependency-path: package-lock.json}
       - run: npm ci
-        working-directory: ruleloom
       - run: npm run lint && npm run typecheck && npm test && npm run build
-        working-directory: ruleloom
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - run: python -m py_compile contracts/ruleloom_book.py contracts/ruleloom_pass.py || true
-        working-directory: ruleloom
+      - run: python -m py_compile contracts/ruleloom_book.py contracts/ruleloom_pass.py
       - run: python -m pytest tests/contract
-        working-directory: ruleloom
   live-studionet:
     if: ${{ vars.RUN_LIVE_STUDIONET == 'true' }}
     runs-on: ubuntu-latest

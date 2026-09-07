@@ -27,12 +27,12 @@ class RuleloomBookInterface:
 class RuleloomBook(gl.Contract):
     books:TreeMap[u256,str]; clauses:TreeMap[str,str]; applications:TreeMap[u256,str]; evaluations:TreeMap[u256,str]
     last_application:TreeMap[str,u256]; next_book_id:u256; next_application_id:u256; next_evaluation_id:u256
-    passbook_address:Address
+    passbook_address:Address; deployer:Address
     def __init__(self,passbook_address:Address):
-        self.passbook_address=passbook_address; self.next_book_id=u256(1); self.next_application_id=u256(1); self.next_evaluation_id=u256(1)
+        self.passbook_address=passbook_address; self.deployer=gl.message.sender_address; self.next_book_id=u256(1); self.next_application_id=u256(1); self.next_evaluation_id=u256(1)
     @gl.public.write
     def bind_passbook(self,passbook_address:Address)->None:
-        if self.next_book_id!=u256(1) or str(self.passbook_address).lower()!="0x0000000000000000000000000000000000000000": raise gl.vm.UserError("passbook binding is immutable")
+        if gl.message.sender_address!=self.deployer or str(passbook_address).lower()==ZERO or self.next_book_id!=u256(1) or str(self.passbook_address).lower()!=ZERO: raise gl.vm.UserError("authorized one-time nonzero binding required")
         self.passbook_address=passbook_address
     def _book(self,book_id): return _load(self.books[book_id])
     def _clause_key(self,book_id,clause_id): return str(book_id)+":"+str(clause_id)
@@ -42,6 +42,7 @@ class RuleloomBook(gl.Contract):
         return _put({"version":"ruleloom-v1","title":b["title"],"purpose":b["purpose"],"resource":b["resource"],"max_duration":b["max_duration"],"cooldown":b["cooldown"],"max_evidence":b["max_evidence"],"clauses":cs})
     @gl.public.write
     def create_rulebook(self,title:str,purpose:str,resource:str,max_duration:u256,cooldown:u256,max_evidence:u256,previous_hash:str)->u256:
+        if str(self.passbook_address).lower()==ZERO: raise gl.vm.UserError("passbook must be bound before creation")
         if not(3<=len(title)<=80 and 10<=len(purpose)<=600 and 2<=len(resource)<=80 and 0<int(max_duration)<=31536000 and int(cooldown)<=31536000 and 1<=int(max_evidence)<=MAX_EVIDENCE): raise gl.vm.UserError("invalid bounded rulebook fields")
         if previous_hash and (len(previous_hash)!=64 or any(c not in "0123456789abcdef" for c in previous_hash)): raise gl.vm.UserError("invalid predecessor hash")
         bid=self.next_book_id; self.next_book_id+=u256(1)
@@ -80,7 +81,8 @@ class RuleloomBook(gl.Contract):
         sources=[]
         for url in urls:
             try:
-                body=gl.nondet.web.get(url)
+                response=gl.nondet.web.get(url); body=getattr(response,"body",None)
+                if isinstance(body,bytes): body=body.decode("utf-8","strict")
                 if not isinstance(body,str) or not body: sources.append("")
                 else: sources.append(body[:MAX_SOURCE])
             except: sources.append("")
@@ -107,7 +109,8 @@ class RuleloomBook(gl.Contract):
             c=clauses[f["clause_id"]]; value=f["finding"]
             if c["severity"]=="EXCLUSION" and value=="SATISFIED": exclusions.append(c["id"])
             if c["severity"]=="REQUIRED" and value=="SATISFIED": required.append(c["id"])
-            if c["severity"]=="REQUIRED" and value=="UNRESOLVED": unresolved.append(c["id"])
+            if c["severity"]=="REQUIRED" and value in {"UNRESOLVED","NOT_APPLICABLE"}: unresolved.append(c["id"])
+            if c["severity"]=="EXCLUSION" and value in {"UNRESOLVED","NOT_APPLICABLE"}: unresolved.append(c["id"])
             if c["severity"]=="REQUIRED" and value=="NOT_SATISFIED": return "DENY",required,exclusions,unresolved
         if exclusions: return "DENY",required,exclusions,unresolved
         if unresolved: return "REVIEW",required,exclusions,unresolved
@@ -142,3 +145,5 @@ class RuleloomBook(gl.Contract):
     def get_evaluation(self,evaluation_id:u256)->dict: return _load(self.evaluations[evaluation_id])
     @gl.public.view
     def get_rulebook_count(self)->u256: return self.next_book_id-u256(1)
+    @gl.public.view
+    def get_application_count(self)->u256: return self.next_application_id-u256(1)
