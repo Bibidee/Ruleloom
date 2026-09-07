@@ -66,6 +66,39 @@ def test_pass_authorization_and_expiry_in_direct_mode(direct_deploy):
     passbook.expire_pass(1)
     assert passbook.is_authorized(7, holder) is False
 
+def _evaluated_book(direct_vm, direct_deploy, finding, severity="REQUIRED", source_index=0, excerpt="Alice is an active member of the Alpha Builder program."):
+    source="Alice is an active member of the Alpha Builder program."
+    direct_vm.mock_web(r"alpha\.example", {"status":200,"body":source})
+    direct_vm.mock_llm(r"You evaluate sealed", json.dumps({"clauses":[{"clause_id":1,"finding":finding,"source_index":source_index,"excerpt":excerpt}],"reason":"mocked evidence"}))
+    book=direct_deploy("contracts/ruleloom_book.py", _address("pass"))
+    bid=book.create_rulebook("Alpha", "A policy purpose long enough.", "Lab", 60, 0, 1, "")
+    book.add_clause(bid,"Membership","Applicant must provide public evidence confirming membership in the Alpha Builder program.",severity,"PUBLIC_URL")
+    definition=book.seal(bid)
+    aid=book.submit_application(bid,definition,"Alice is applying with public membership evidence.",30,["https://alpha.example/member"])
+    eid=book.evaluate(aid)
+    return book,bid,aid,eid
+
+@pytest.mark.direct
+def test_direct_mocked_public_url_allow_lifecycle(direct_vm, direct_deploy):
+    book,bid,aid,eid=_evaluated_book(direct_vm,direct_deploy,"SATISFIED")
+    assert book.get_application(aid)["status"] == "ALLOWED"
+    assert book.get_evaluation(eid)["decision"] == "ALLOW"
+    assert book.get_evaluation(eid)["clauses"][0]["excerpt"] == "Alice is an active member of the Alpha Builder program."
+
+@pytest.mark.direct
+@pytest.mark.parametrize("finding,source_index,excerpt", [("NOT_SATISFIED",0,"Alice is an active member of the Alpha Builder program."),("SATISFIED",-1,""),("SATISFIED",4,"Alice is an active member of the Alpha Builder program."),("SATISFIED",0,"different text")])
+def test_direct_mocked_public_url_decisions(direct_vm, direct_deploy, finding, source_index, excerpt):
+    book,_,aid,eid=_evaluated_book(direct_vm,direct_deploy,finding,source_index=source_index,excerpt=excerpt)
+    expected="DENIED" if finding=="NOT_SATISFIED" and source_index==0 else "REVIEW"
+    assert book.get_application(aid)["status"] == expected
+    assert book.get_evaluation(eid)["decision"] == {"DENIED":"DENY","REVIEW":"REVIEW"}[expected]
+
+@pytest.mark.direct
+def test_direct_mocked_exclusion_denies(direct_vm, direct_deploy):
+    book,_,aid,eid=_evaluated_book(direct_vm,direct_deploy,"SATISFIED",severity="EXCLUSION")
+    assert book.get_application(aid)["status"] == "DENIED"
+    assert book.get_evaluation(eid)["decision"] == "DENY"
+
 @pytest.fixture
 def book_factory(direct_deploy):
     def make():
