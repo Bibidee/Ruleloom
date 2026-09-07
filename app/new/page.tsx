@@ -1,0 +1,1 @@
+import {Composer} from '@/components/composer'; export default function New(){return <main><span className="eyebrow">Rulebook composer</span><h2>Turn prose into<br/>a fixed envelope.</h2><p>Ruleloom can derive only ALLOW, DENY, or REVIEW. Your text is never treated as executable code.</p><Composer/></main>}

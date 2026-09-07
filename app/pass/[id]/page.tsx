@@ -1,0 +1,1 @@
+import {PassView} from '@/components/pass-view'; export default async function Pass({params}:{params:Promise<{id:string}>}){const {id}=await params;return <main><span className="eyebrow">Passbook / deterministic registry</span><h2>Access, carried<br/>with its policy.</h2><PassView id={id}/></main>}

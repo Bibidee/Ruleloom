@@ -1,0 +1,3 @@
+export type ClauseDraft={label:string;prose:string;severity:'REQUIRED'|'EXCLUSION'|'PREFERENCE';evidenceNeed:'NONE'|'PUBLIC_URL'|'OPTIONAL_URL'};
+export function canonicalDefinition(book: {title:string;purpose:string;resource:string;maxDuration:string;cooldown:string;maxEvidence:number;clauses:ClauseDraft[]}) { return JSON.stringify({version:'ruleloom-v1',...book,clauses:book.clauses.map((c,i)=>({id:i+1,...c}))}); }
+export async function definitionHash(book: Parameters<typeof canonicalDefinition>[0]) { const bytes=new TextEncoder().encode(canonicalDefinition(book)); const hash=await crypto.subtle.digest('SHA-256',bytes); return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join(''); }

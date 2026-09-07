@@ -1,0 +1,2 @@
+'use client'; import Link from 'next/link'; import {useWallet} from '@/lib/wallet/provider';
+export function Nav(){const w=useWallet();return <nav><Link className="mark" href="/">RULELOOM</Link><div className="links"><Link href="/books">Rulebooks</Link><Link href="/new">Compose</Link><Link href="/verify">Verify</Link><Link href="/me">My records</Link></div>{w.connected?<button onClick={w.disconnect}>{w.account?.slice(0,6)}··{w.account?.slice(-4)}</button>:<button onClick={w.connect}>{w.connecting?'Connecting…':'Connect wallet'}</button>}</nav>}
