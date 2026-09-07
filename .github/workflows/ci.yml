@@ -12,6 +12,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - run: python -m pip install -r requirements-dev.txt
+      # gltest 0.29.2 still requests the retired universal archive filename.
+      # rc7 publishes the identical runner bundle as genvm-runners-all.
+      - run: mkdir -p ~/.cache/gltest-direct && curl -fsSL --retry 3 https://github.com/genlayerlabs/genvm/releases/download/v0.3.0-rc7/genvm-runners-all.tar.xz -o ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz
       - run: python -m py_compile contracts/ruleloom_book.py contracts/ruleloom_pass.py
       - run: python -m pytest tests/contract
   live-studionet:

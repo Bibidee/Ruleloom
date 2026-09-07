@@ -23,7 +23,7 @@ class RuleloomPass(gl.Contract):
         if e["decision"]!="ALLOW" or e["issued"] or self.by_evaluation.get(evaluation_id,u256(0))!=u256(0) or e["definition_hash"]!=rb["definition_hash"]: raise gl.vm.UserError("exact current ALLOW evaluation required")
         if str(gl.message.sender_address).lower()!=e["applicant"].lower(): raise gl.vm.UserError("holder must issue own pass")
         pid=self.next_pass_id; self.next_pass_id+=u256(1); expiry=_now()+int(_load_app_duration(e,book))
-        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[self._key(e["rulebook_id"],e["applicant"])]=pid; book.emit(on="accepted").mark_issued(evaluation_id); return pid
+        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[self._key(e["rulebook_id"],e["applicant"])]=pid; book.emit(on="finalized").mark_issued(evaluation_id); return pid
     @gl.public.write
     def expire_pass(self,pass_id:u256)->None:
         p=json.loads(self.passes[pass_id])

@@ -2,7 +2,8 @@
 """Ruleloom's policy authority. Prose is interpreted, never executed as code."""
 from genlayer import *
 from datetime import datetime, timezone
-import hashlib, json
+import hashlib, json, ipaddress
+from urllib.parse import urlsplit
 
 MAX_CLAUSES=12; MAX_EVIDENCE=6; MAX_URL=400; MAX_SOURCE=6000
 SEVERITIES={"REQUIRED","EXCLUSION","PREFERENCE"}; NEEDS={"NONE","PUBLIC_URL","OPTIONAL_URL"}
@@ -13,9 +14,19 @@ def _put(v): return json.dumps(v,sort_keys=True,separators=(",",":"))
 def _hash(v): return hashlib.sha256(v.encode()).hexdigest()
 def _load(v): return json.loads(v)
 def _canonical_url(url):
-    if not isinstance(url,str) or len(url)>MAX_URL or not url.startswith("https://") or "@" in url.split("/")[2] or "#" in url: raise gl.vm.UserError("public https URL required")
-    host=url.split("/")[2].split(":")[0].lower()
-    if host in {"localhost","0.0.0.0"} or host.startswith(("127.","10.","192.168.","169.254.")): raise gl.vm.UserError("private URL rejected")
+    if not isinstance(url,str) or len(url)>MAX_URL or any(c.isspace() for c in url): raise gl.vm.UserError("public https URL required")
+    try:
+        parsed=urlsplit(url); host=parsed.hostname; port=parsed.port
+    except (ValueError, TypeError): raise gl.vm.UserError("malformed public https URL")
+    if parsed.scheme!="https" or not parsed.netloc or parsed.username is not None or parsed.password is not None or parsed.fragment or not host or port is not None and not 1<=port<=65535: raise gl.vm.UserError("public https URL required")
+    host=host.lower().rstrip(".")
+    if not host or host in {"localhost","0.0.0.0"} or host.endswith((".localhost",".local")): raise gl.vm.UserError("private URL rejected")
+    try:
+        address=ipaddress.ip_address(host)
+        if address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_unspecified or getattr(address,"is_site_local",False) or str(address).startswith("100.") and 64<=int(str(address).split(".")[1])<=127: raise gl.vm.UserError("private URL rejected")
+    except ValueError:
+        labels=host.split(".")
+        if len(labels)<2 or any(not label or len(label)>63 or not all(ch.isalnum() or ch=="-" for ch in label) or label[0]=="-" or label[-1]=="-" for label in labels) or len(labels[-1])<2 or labels[-1].isdigit(): raise gl.vm.UserError("public DNS hostname required")
     return url.rstrip("/")
 
 @gl.contract_interface
@@ -105,7 +116,7 @@ class RuleloomBook(gl.Contract):
             need=c["evidence_need"]
             # NONE is statement/policy-only; OPTIONAL_URL may be source-free. PUBLIC_URL must be grounded.
             if finding not in FINDINGS: finding="UNRESOLVED"
-            elif need=="PUBLIC_URL" and (finding=="SATISFIED" and not grounded or not sources): finding="UNRESOLVED"
+            elif need=="PUBLIC_URL" and (finding!="UNRESOLVED" and not grounded): finding="UNRESOLVED"
             elif need in {"NONE","OPTIONAL_URL"} and index==-1 and excerpt=="": pass
             elif index!=-1 and not grounded: finding="UNRESOLVED"
             if need=="NONE": index=-1; excerpt=""

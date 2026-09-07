@@ -6,10 +6,10 @@ const privateKey=process.env.GENLAYER_PRIVATE_KEY;
 if(!privateKey) throw new Error('Deployment blocked: GENLAYER_PRIVATE_KEY is required. Provide a funded Studionet signer only through the environment; this script never creates or stores one.');
 const source=(file)=>readFileSync(file,'utf8'); const digest=(value)=>createHash('sha256').update(value).digest('hex');
 const bookCode=source('contracts/ruleloom_book.py'),passCode=source('contracts/ruleloom_pass.py'),account=createAccount(privateKey),client=createClient({chain:studionet,account}),zero='0x0000000000000000000000000000000000000000';
-const successful=(receipt)=>/FINISHED_WITH_RETURN|SUCCESS/i.test(String(receipt?.txExecutionResultName??receipt?.consensus_data?.leader_receipt?.[0]?.execution_result));
+const successful=(receipt)=>new Set(['FINISHED_WITH_RETURN','SUCCESS']).has(String(receipt?.txExecutionResultName??receipt?.consensus_data?.leader_receipt?.[0]?.execution_result));
 async function finalized(hash,label){const receipt=await client.waitForTransactionReceipt({hash,status:'FINALIZED',retries:180,interval:5000});if(!successful(receipt))throw new Error(`${label} finalized without successful execution: ${String(receipt?.txExecutionResultName??receipt?.consensus_data?.leader_receipt?.[0]?.execution_result)}`);return receipt}
 async function deployedAddress(hash,label){await finalized(hash,label);const decoded=decodeTransaction(await client.getTransaction({hash}));const address=decoded.txDataDecoded?.contractAddress;if(!address)throw new Error(`${label} receipt has no contract address; inspect ${hash} before any follow-up transaction.`);return address}
-async function verifySource(address,expected,label){if(digest(await client.getContractCode({address}))!==digest(expected))throw new Error(`${label} source hash mismatch at ${address}`)}
+async function verifySource(address,expected,label){const deployed=await client.getContractCode({address});if(typeof deployed!=='string'||digest(deployed)!==digest(expected))throw new Error(`${label} source bytes differ at ${address}`)}
 console.log(JSON.stringify({network:'Studionet',chainId:61999,bookSha256:digest(bookCode),passSha256:digest(passCode),deployer:account.address}));
 const bookHash=await client.deployContract({code:bookCode,args:[zero]}),bookAddress=await deployedAddress(bookHash,'Book deployment');
 const passHash=await client.deployContract({code:passCode,args:[bookAddress]}),passAddress=await deployedAddress(passHash,'Passbook deployment');
