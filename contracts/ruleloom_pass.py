@@ -19,11 +19,11 @@ class RuleloomPass(gl.Contract):
     def _key(self,book_id,holder): return str(book_id)+":"+str(holder).lower()
     @gl.public.write
     def issue_from_evaluation(self,evaluation_id:u256)->u256:
-        book=RuleloomBook(self.book_address); e=book.get_evaluation(evaluation_id); rb=book.get_rulebook(u256(e["rulebook_id"]))
+        book=RuleloomBook(self.book_address); e=book.view().get_evaluation(evaluation_id); rb=book.view().get_rulebook(u256(e["rulebook_id"]))
         if e["decision"]!="ALLOW" or e["issued"] or self.by_evaluation.get(evaluation_id,u256(0))!=u256(0) or e["definition_hash"]!=rb["definition_hash"]: raise gl.vm.UserError("exact current ALLOW evaluation required")
         if str(gl.message.sender_address).lower()!=e["applicant"].lower(): raise gl.vm.UserError("holder must issue own pass")
         pid=self.next_pass_id; self.next_pass_id+=u256(1); expiry=_now()+int(_load_app_duration(e,book))
-        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[self._key(e["rulebook_id"],e["applicant"])]=pid; book.mark_issued(evaluation_id); return pid
+        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[self._key(e["rulebook_id"],e["applicant"])]=pid; book.emit(on="accepted").mark_issued(evaluation_id); return pid
     @gl.public.write
     def expire_pass(self,pass_id:u256)->None:
         p=json.loads(self.passes[pass_id])
@@ -43,4 +43,4 @@ class RuleloomPass(gl.Contract):
         p=json.loads(self.passes[pid]); return pid if p["active"] and _now()<p["expiry"] else u256(0)
     @gl.public.view
     def is_authorized(self,rulebook_id:u256,holder:Address)->bool: return self.active_pass(rulebook_id,holder)!=u256(0)
-def _load_app_duration(e,book): return book.get_application(u256(e["application_id"]))["requested_duration"]
+def _load_app_duration(e,book): return book.view().get_application(u256(e["application_id"]))["requested_duration"]
