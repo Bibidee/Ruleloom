@@ -18,4 +18,20 @@ Frozen contract source commit: `81c4e61b801cb0a2e7f43752fbe917f9680a1133`.
 
 Fresh `genlayer code` checks verified byte-for-byte source parity for both deployed contracts. Fresh schemas expose the Book lifecycle methods and Passbook issuance/authorization methods. A live policy lifecycle is recorded here only after canonical `ALLOW`, finalized Book `issued=true`, and `is_authorized=true` are observed.
 
+## Verified live lifecycle
+
+The authorized signer created and completed this canonical lifecycle on the frozen deployment.
+
+| Transition | Evidence |
+| --- | --- |
+| Create Book #1 | `0xf23ca49af9cadf9a6da74c05c0dba2699d989b14780b08407046680bc730fad5` |
+| Add clause | `0xaecf4c679d25a363ffbb4f8aae86f20b46d094ca2a604785a62fa2c6632b142b` |
+| Seal | `0x285bcdd405a317936d37e321e7ac6c06e67520f3f0f7aa0e1ec03f05db2731e6` |
+| Definition hash | `a4c50e71220d96e0e5df4798cd396f77a7cb5a3a24aba06c70dfcf02adf05d66` |
+| Submit application #1 | `0xc0b7a7495b816f53563417b24b064a272f6cfbb744031d70115d4af2514039ab` |
+| Evaluate #1 | `0x505109b40243dbb95407a26309f3ad565c3cdd92b53cb5df5c4bdaadaf5152a3` |
+| Issue pass #1 | `0xb191f8ad57069c2f3a9afe1a6fe9fd8526ec7b856cfc0167b6bd933edf1d5332` |
+
+Canonical reads verified `SEALED`, `SUBMITTED`, `ALLOW`, pass `#1` active, Book evaluation `issued=true`, `active_pass(1, holder)=1`, and `is_authorized(1, holder)=true`. The grounded finding was `SATISFIED` at source index `0` with literal excerpt `# Ruleloom` from the submitted public HTTPS source.
+
 Run `GENLAYER_PRIVATE_KEY=<funded signer> node scripts/deploy-studionet.mjs`. The signer is intentionally never read from, written to, or committed in a repository file.
