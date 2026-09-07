@@ -25,7 +25,7 @@ class RuleloomBookInterface:
         def get_rulebook(self,rulebook_id:u256)->dict: ...
 
 class RuleloomBook(gl.Contract):
-    books:TreeMap[u256,str]; clauses:TreeMap[str,str]; applications:TreeMap[u256,str]; evaluations:TreeMap[u256,str]
+    books:TreeMap[u256,str]; clauses:TreeMap[str,str]; applications:TreeMap[u256,str]; evaluations:TreeMap[u256,str]; latest_book:TreeMap[str,u256]
     last_application:TreeMap[str,u256]; next_book_id:u256; next_application_id:u256; next_evaluation_id:u256
     passbook_address:Address; deployer:Address
     def __init__(self,passbook_address:Address):
@@ -47,6 +47,7 @@ class RuleloomBook(gl.Contract):
         if previous_hash and (len(previous_hash)!=64 or any(c not in "0123456789abcdef" for c in previous_hash)): raise gl.vm.UserError("invalid predecessor hash")
         bid=self.next_book_id; self.next_book_id+=u256(1)
         self.books[bid]=_put({"id":int(bid),"creator":str(gl.message.sender_address),"title":title,"purpose":purpose,"resource":resource,"max_duration":int(max_duration),"cooldown":int(cooldown),"max_evidence":int(max_evidence),"clause_count":0,"status":"DRAFT","definition_hash":"","previous_hash":previous_hash,"version":1,"sealed_at":0})
+        self.latest_book[str(gl.message.sender_address).lower()]=bid
         return bid
     @gl.public.write
     def add_clause(self,book_id:u256,label:str,prose:str,severity:str,evidence_need:str)->u256:
@@ -156,3 +157,5 @@ class RuleloomBook(gl.Contract):
     def get_application_count(self)->u256: return self.next_application_id-u256(1)
     @gl.public.view
     def latest_application(self,book_id:u256,applicant:Address)->u256: return self.last_application.get(str(book_id)+":"+str(applicant).lower(),u256(0))
+    @gl.public.view
+    def latest_rulebook(self,creator:Address)->u256: return self.latest_book.get(str(creator).lower(),u256(0))

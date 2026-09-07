@@ -8,3 +8,6 @@ export async function readClause(book:bigint,id:bigint){assertConfigured();retur
 export async function readApplication(id:bigint){assertConfigured();return publicClient.readContract({address:addresses.book,functionName:'get_application',args:[id]}) as Promise<any>}
 export async function readEvaluation(id:bigint){assertConfigured();return publicClient.readContract({address:addresses.book,functionName:'get_evaluation',args:[id]}) as Promise<any>}
 export async function readPass(id:bigint){assertConfigured();return publicClient.readContract({address:addresses.pass,functionName:'get_pass',args:[id]}) as Promise<any>}
+export async function latestApplication(book:bigint,applicant:`0x${string}`){assertConfigured();return publicClient.readContract({address:addresses.book,functionName:'latest_application',args:[book,applicant]}) as Promise<bigint>}
+export async function passByEvaluation(evaluation:bigint){assertConfigured();return publicClient.readContract({address:addresses.pass,functionName:'get_pass_by_evaluation',args:[evaluation]}) as Promise<any>}
+export async function latestRulebook(creator:`0x${string}`){assertConfigured();return publicClient.readContract({address:addresses.book,functionName:'latest_rulebook',args:[creator]}) as Promise<bigint>}
