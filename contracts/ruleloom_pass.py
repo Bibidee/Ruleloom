@@ -32,6 +32,11 @@ class RuleloomPass(gl.Contract):
     @gl.public.view
     def get_pass(self,pass_id:u256)->dict: return json.loads(self.passes[pass_id])
     @gl.public.view
+    def get_pass_by_evaluation(self,evaluation_id:u256)->dict:
+        pid=self.by_evaluation.get(evaluation_id,u256(0))
+        if pid==u256(0): return {"id":0,"active":False}
+        return json.loads(self.passes[pid])
+    @gl.public.view
     def active_pass(self,rulebook_id:u256,holder:Address)->u256:
         pid=self.active_by_holder.get(self._key(rulebook_id,holder),u256(0))
         if pid==u256(0): return pid

@@ -11,6 +11,7 @@ jobs:
       - run: npm run lint && npm run typecheck && npm test && npm run build
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
+      - run: python -m pip install -r requirements-dev.txt
       - run: python -m py_compile contracts/ruleloom_book.py contracts/ruleloom_pass.py
       - run: python -m pytest tests/contract
   live-studionet:

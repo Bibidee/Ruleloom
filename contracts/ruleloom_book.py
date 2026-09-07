@@ -76,6 +76,7 @@ class RuleloomBook(gl.Contract):
             urls.append(normalized)
         aid=self.next_application_id; self.next_application_id+=u256(1); self.last_application[key]=u256(now)
         self.applications[aid]=_put({"id":int(aid),"rulebook_id":int(book_id),"definition_hash":definition_hash,"applicant":str(gl.message.sender_address),"statement":statement,"requested_duration":int(requested_duration),"evidence":urls,"submitted_at":now,"status":"SUBMITTED","evaluation_id":0})
+        self.last_application[key]=aid
         return aid
     def _sources(self,urls):
         sources=[]
@@ -98,9 +99,15 @@ class RuleloomBook(gl.Contract):
         for c in clauses:
             entry=next((x for x in raw["clauses"] if isinstance(x,dict) and x.get("clause_id")==c["id"]),None)
             finding=entry.get("finding") if entry else "UNRESOLVED"; index=entry.get("source_index",-1) if entry else -1; excerpt=entry.get("excerpt","") if entry else ""
-            grounded=isinstance(index,int) and 0<=index<len(sources) and isinstance(excerpt,str) and len(excerpt)<=300 and (not excerpt or excerpt in sources[index])
-            requires=c["evidence_need"]=="PUBLIC_URL"
-            if finding not in FINDINGS or not grounded or (requires and (finding=="SATISFIED" and not excerpt)) or (requires and not sources): finding="UNRESOLVED"; index=-1; excerpt=""
+            valid_source=isinstance(index,int) and 0<=index<len(sources) and bool(sources[index])
+            grounded=valid_source and isinstance(excerpt,str) and len(excerpt)<=300 and bool(excerpt) and excerpt in sources[index]
+            need=c["evidence_need"]
+            # NONE is statement/policy-only; OPTIONAL_URL may be source-free. PUBLIC_URL must be grounded.
+            if finding not in FINDINGS: finding="UNRESOLVED"
+            elif need=="PUBLIC_URL" and (finding=="SATISFIED" and not grounded or not sources): finding="UNRESOLVED"
+            elif need in {"NONE","OPTIONAL_URL"} and index==-1 and excerpt=="": pass
+            elif index!=-1 and not grounded: finding="UNRESOLVED"
+            if need=="NONE": index=-1; excerpt=""
             out.append({"clause_id":c["id"],"finding":finding,"source_index":index,"excerpt":excerpt})
         return {"clauses":out,"reason":str(raw.get("reason",""))[:240]}
     def _derive(self,b,findings):
@@ -147,3 +154,5 @@ class RuleloomBook(gl.Contract):
     def get_rulebook_count(self)->u256: return self.next_book_id-u256(1)
     @gl.public.view
     def get_application_count(self)->u256: return self.next_application_id-u256(1)
+    @gl.public.view
+    def latest_application(self,book_id:u256,applicant:Address)->u256: return self.last_application.get(str(book_id)+":"+str(applicant).lower(),u256(0))
