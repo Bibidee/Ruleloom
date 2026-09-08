@@ -12,8 +12,8 @@ From this directory: `npm ci && npm run dev`. Configure the deployed Book and Pa
 
 ## Deployment
 
-Current Studionet deployment: Book `0xb14dFC7F1E30C3b468aF9c9E1636e47d181cfF06`; Passbook `0x3069B8f059Eeb8842A6AC8357179245d6208E5e2`.
+Current Studionet deployment: Book `0x01EF66F3337c68242eC3620c0B650790B6d8B1E9`; Passbook `0x475B74ccecAa86B795CAC6c99C1eBF08f832A396`.
 
 Production app: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app). The older `ruleloom-psi.vercel.app` alias remains a secondary deployment alias.
 
-`node scripts/deploy-studionet.mjs` intentionally stops without a funded signer. It prints source hashes and requires explicit Studionet deployment configuration. See [deployment notes](docs/DEPLOYMENT.md).
+The current deployment was created with the active, unlocked Studionet CLI account and verified byte-for-byte against the committed sources. See [deployment notes](docs/DEPLOYMENT.md) for deployment transactions, source hashes, binding checks, and the pending live-app lifecycle record.

@@ -1,41 +1,38 @@
 # Deployment
 
-Deploy both sources unchanged to Studionet (`61999`) using the stable py-genlayer dependency header. The Book is first deployed with the zero address, the Passbook is deployed with that Book address, and the deployer then performs the Book's one-time `bind_passbook` write. The command waits for successful finalized execution, extracts the deployment addresses, verifies on-chain source hashes, and checks both canonical schemas before printing configuration values. Set public addresses only after preserving those receipts.
+Ruleloom is deployed to Studionet (chain `61999`) as a matched Book and Passbook pair. The Book was deployed first with the zero address, the Passbook was deployed against that Book, and the Book was then bound to the Passbook with its one-time binding method.
 
-## Current frozen deployment
+## Current corrected deployment
 
-Frozen contract source commit: `81c4e61b801cb0a2e7f43752fbe917f9680a1133`.
+Contract source commit: `730d1319cd96978bf733836a2b4b35dbe17e8100`.
 
 | Item | Value |
 | --- | --- |
-| RuleloomBook | `0xb14dFC7F1E30C3b468aF9c9E1636e47d181cfF06` |
-| RuleloomPass | `0x3069B8f059Eeb8842A6AC8357179245d6208E5e2` |
-| Book source SHA-256 / bytes | `41e547a1ac19639bd999b56d34f71c8fa2c15642b9f44791e88df27e07352220` / `14907` |
-| Pass source SHA-256 / bytes | `7a0c41717fed8beab2ee3e2c32a7a67ec44d9e4b1301816a4d2de9069263c5da` / `3311` |
-| Book deploy | `0x3a3632b692754952e6cc4e49ccd40c666fe02352d466fce2efc9e9d0d990bf85` |
-| Pass deploy | `0x3f554685f8b4fd1d06385e719175f1826866d07a12141d2f06ed1596bbd74cc6` |
-| One-time binding | `0xe91a05ee1ae5deae6196515535f36cb552fa47253d511f5ede28bb084becce63` |
+| RuleloomBook | `0x01EF66F3337c68242eC3620c0B650790B6d8B1E9` |
+| RuleloomPass | `0x475B74ccecAa86B795CAC6c99C1eBF08f832A396` |
+| Book source SHA-256 / bytes | `982d04e658f36c6b5c24ae116912f6b9914a89f4ec9862b1f23884aef9b072c0` / `17509` |
+| Pass source SHA-256 / bytes | `017b20bcf7909273762adb522f3f91c35156045294a5df81724c365cda98aab2` / `4129` |
+| Book deploy | `0x56faf43429e1f0fd5a6527085c766da3f0adb9d61588aa8ddeb425fc334c0f39` |
+| Pass deploy | `0x3125a0b486f866d9d000246ffd20e5d877a998e8e78069497ce51755dd0fdb79` |
+| Book to Passbook binding | `0xdf0767dcf0b310a2dc8cc443373dd3f032908679ba1309a6bcd534197a9343a1` |
 
-Fresh `genlayer code` checks verified byte-for-byte source parity for both deployed contracts. Fresh schemas expose the Book lifecycle methods and Passbook issuance/authorization methods. A live policy lifecycle is recorded here only after canonical `ALLOW`, finalized Book `issued=true`, and `is_authorized=true` are observed.
+Fresh canonical reads confirm `Book.get_passbook()` returns the Passbook address and `Passbook.get_book_address()` returns the Book address. The live schemas expose the Book evaluation/recovery lifecycle and the Passbook issuance, lookup, expiry, and authorization methods.
 
-## Verified live lifecycle
+Fresh on-chain source retrieval verified byte-for-byte parity for both contracts:
 
-The authorized signer created and completed this canonical lifecycle on the frozen deployment.
-
-| Transition | Evidence |
+| Contract | Source parity |
 | --- | --- |
-| Create Book #1 | `0xf23ca49af9cadf9a6da74c05c0dba2699d989b14780b08407046680bc730fad5` |
-| Add clause | `0xaecf4c679d25a363ffbb4f8aae86f20b46d094ca2a604785a62fa2c6632b142b` |
-| Seal | `0x285bcdd405a317936d37e321e7ac6c06e67520f3f0f7aa0e1ec03f05db2731e6` |
-| Definition hash | `a4c50e71220d96e0e5df4798cd396f77a7cb5a3a24aba06c70dfcf02adf05d66` |
-| Submit application #1 | `0xc0b7a7495b816f53563417b24b064a272f6cfbb744031d70115d4af2514039ab` |
-| Evaluate #1 | `0x505109b40243dbb95407a26309f3ad565c3cdd92b53cb5df5c4bdaadaf5152a3` |
-| Issue pass #1 | `0xb191f8ad57069c2f3a9afe1a6fe9fd8526ec7b856cfc0167b6bd933edf1d5332` |
-
-Canonical reads verified `SEALED`, `SUBMITTED`, `ALLOW`, pass `#1` active, Book evaluation `issued=true`, `active_pass(1, holder)=1`, and `is_authorized(1, holder)=true`. The grounded finding was `SATISFIED` at source index `0` with literal excerpt `# Ruleloom` from the submitted public HTTPS source.
+| RuleloomBook | VERIFIED |
+| RuleloomPass | VERIFIED |
 
 ## Production frontend
 
-Vercel project: `ruleloom`. Canonical production URL: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app), assigned to the existing Ruleloom production deployment. It is configured with the frozen Book and Passbook public addresses. The older `ruleloom-psi.vercel.app` alias remains secondary. Anonymous checks of `/`, `/new`, `/books`, `/verify`, and `/b/1` load Ruleloom without a Vercel access page; Rulebook `#1` reads as `SEALED` in the public UI.
+Vercel project: `ruleloom`. Canonical production URL: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app). Its public production environment must use the current Book and Passbook addresses above before the next production release. The legacy `ruleloom-psi.vercel.app` address, if retained by Vercel, is secondary and is not the canonical URL.
 
-Run `GENLAYER_PRIVATE_KEY=<funded signer> node scripts/deploy-studionet.mjs`. The signer is intentionally never read from, written to, or committed in a repository file.
+## Live lifecycle record
+
+The corrected deployment has been bound and source-verified. The fresh user-facing lifecycle is intentionally recorded only after it has been performed through the production application: create rulebook, add clause, seal, submit application, start and run evaluation, issue the resulting pass, and verify finalized Book accounting plus authorization. No lifecycle result is claimed here before those canonical reads exist.
+
+## Deployment procedure
+
+Use the active, unlocked Studionet CLI account to deploy both sources, bind the pair, and then verify source parity and canonical binding before assigning their public addresses to the production frontend. Never place a signer secret in a repository file or browser environment variable.
