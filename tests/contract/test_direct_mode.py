@@ -77,6 +77,7 @@ def _evaluated_book(direct_vm, direct_deploy, finding, severity="REQUIRED", sour
     book.add_clause(bid,"Membership","Applicant must provide public evidence confirming membership in the Alpha Builder program.",severity,"PUBLIC_URL")
     definition=book.seal(bid)
     aid=book.submit_application(bid,definition,"Alice is applying with public membership evidence.",30,["https://alpha.example/member"])
+    book.start_evaluation(aid)
     eid=book.evaluate(aid)
     return book,bid,aid,eid
 
@@ -120,6 +121,7 @@ def test_direct_cross_contract_allow_issues_and_authorizes(direct_vm, direct_dep
         engine.call_method(book_address,"add_clause",[bid,"Membership","Applicant must provide public evidence confirming membership in the Alpha Builder program.","REQUIRED","PUBLIC_URL"],sender=creator)
         definition=engine.call_method(book_address,"seal",[bid],sender=creator)
         aid=engine.call_method(book_address,"submit_application",[bid,definition,"Alice applies with public Alpha Builder membership evidence.",30,["https://alpha.example/member"]],sender=applicant)
+        engine.call_method(book_address,"start_evaluation",[aid],sender=applicant)
         eid=engine.call_method(book_address,"evaluate",[aid],sender=applicant)
         assert engine.call_method(book_address,"get_evaluation",[eid])["decision"] == "ALLOW"
         with pytest.raises(Exception): engine.call_method(pass_address,"issue_from_evaluation",[eid],sender=outsider)

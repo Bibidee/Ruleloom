@@ -22,13 +22,24 @@ class RuleloomPass(gl.Contract):
         book=RuleloomBook(self.book_address); e=book.view().get_evaluation(evaluation_id); rb=book.view().get_rulebook(u256(e["rulebook_id"]))
         if e["decision"]!="ALLOW" or e["issued"] or self.by_evaluation.get(evaluation_id,u256(0))!=u256(0) or e["definition_hash"]!=rb["definition_hash"]: raise gl.vm.UserError("exact current ALLOW evaluation required")
         if str(gl.message.sender_address).lower()!=e["applicant"].lower(): raise gl.vm.UserError("holder must issue own pass")
+        # A holder can have many historical passes, but exactly one current
+        # pass per rulebook. Replacements are retained and explicitly inactive.
+        key=self._key(e["rulebook_id"],e["applicant"]); previous=self.active_by_holder.get(key,u256(0))
+        if previous!=u256(0):
+            prior=json.loads(self.passes[previous]); prior["active"]=False; prior["revocation_source"]="replaced"; self.passes[previous]=_put(prior)
         pid=self.next_pass_id; self.next_pass_id+=u256(1); expiry=_now()+int(_load_app_duration(e,book))
-        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[self._key(e["rulebook_id"],e["applicant"])]=pid; book.emit(on="finalized").mark_issued(evaluation_id); return pid
+        self.passes[pid]=_put({"id":int(pid),"rulebook_id":e["rulebook_id"],"definition_hash":e["definition_hash"],"evaluation_id":int(evaluation_id),"holder":e["applicant"],"issued_at":_now(),"expiry":expiry,"active":True,"revocation_source":"natural_expiry"}); self.by_evaluation[evaluation_id]=pid; self.active_by_holder[key]=pid; book.emit(on="finalized").mark_issued(evaluation_id); return pid
     @gl.public.write
     def expire_pass(self,pass_id:u256)->None:
         p=json.loads(self.passes[pass_id])
+        if not p["active"]: return
         if _now()<p["expiry"]: raise gl.vm.UserError("pass not expired")
-        p["active"]=False; self.passes[pass_id]=_put(p)
+        p["active"]=False; p["revocation_source"]="natural_expiry"; self.passes[pass_id]=_put(p)
+        if self.active_by_holder.get(self._key(p["rulebook_id"],p["holder"]),u256(0))==pass_id: self.active_by_holder[self._key(p["rulebook_id"],p["holder"])]=u256(0)
+    @gl.public.view
+    def get_book_address(self)->Address: return self.book_address
+    @gl.public.view
+    def get_pass_count(self)->u256: return self.next_pass_id-u256(1)
     @gl.public.view
     def get_pass(self,pass_id:u256)->dict: return json.loads(self.passes[pass_id])
     @gl.public.view
