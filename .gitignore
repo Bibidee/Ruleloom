@@ -8,3 +8,4 @@ artifacts/live-*.json
 
 __pycache__/
 *.tsbuildinfo
+.vercel
