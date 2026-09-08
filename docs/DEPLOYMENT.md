@@ -36,6 +36,6 @@ Canonical reads verified `SEALED`, `SUBMITTED`, `ALLOW`, pass `#1` active, Book 
 
 ## Production frontend
 
-Vercel project: `ruleloom`. Production deployment: [ruleloom-psi.vercel.app](https://ruleloom-psi.vercel.app). It is configured with the frozen Book and Passbook public addresses and its homepage, `/new`, `/books`, and `/verify` routes returned HTTP 200. The requested `ruleloom.vercel.app` alias is already in use outside this Vercel scope, so it could not be assigned.
+Vercel project: `ruleloom`. Canonical production URL: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app), assigned to the existing Ruleloom production deployment. It is configured with the frozen Book and Passbook public addresses. The older `ruleloom-psi.vercel.app` alias remains secondary. The project currently retains Vercel Authentication, so anonymous browsers are directed to Vercel access before the application UI is served.
 
 Run `GENLAYER_PRIVATE_KEY=<funded signer> node scripts/deploy-studionet.mjs`. The signer is intentionally never read from, written to, or committed in a repository file.
