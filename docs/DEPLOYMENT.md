@@ -27,7 +27,7 @@ Fresh on-chain source retrieval verified byte-for-byte parity for both contracts
 
 ## Production frontend
 
-Vercel project: `ruleloom`. Canonical production URL: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app). Its public production environment must use the current Book and Passbook addresses above before the next production release. The legacy `ruleloom-psi.vercel.app` address, if retained by Vercel, is secondary and is not the canonical URL.
+Vercel project: `ruleloom`. Canonical production URL: [the-ruleloom.vercel.app](https://the-ruleloom.vercel.app). Its public production environment uses the current Book and Passbook addresses above, and a fresh production deployment was created after that configuration change. The legacy `ruleloom-psi.vercel.app` address, if retained by Vercel, is secondary and is not the canonical URL.
 
 ## Live lifecycle record
 
