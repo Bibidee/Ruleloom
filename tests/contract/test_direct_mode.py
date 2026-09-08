@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from gltest.direct import create_address
 from gltest.direct.sdk_loader import setup_sdk_paths
+from glsim.engine import SimEngine
+from glsim.state import StateStore
 
 # gltest 0.29 opens a temporary stdin handle before unlinking it. Windows
 # forbids that unlink; keeping the tiny temporary file lets Direct Mode use
@@ -98,6 +100,40 @@ def test_direct_mocked_exclusion_denies(direct_vm, direct_deploy):
     book,_,aid,eid=_evaluated_book(direct_vm,direct_deploy,"SATISFIED",severity="EXCLUSION")
     assert book.get_application(aid)["status"] == "DENIED"
     assert book.get_evaluation(eid)["decision"] == "DENY"
+
+@pytest.mark.direct
+def test_direct_cross_contract_allow_issues_and_authorizes(direct_vm, direct_deploy):
+    source="Alice is an active member of the Alpha Builder program."
+    response={"clauses":[{"clause_id":1,"finding":"SATISFIED","source_index":0,"excerpt":source}],"reason":"Public evidence confirms the required membership."}
+    engine=SimEngine(StateStore(seed="ruleloom-cross-contract"), web_handler=lambda _: {"ok":{"response":{"status":200,"headers":{},"body":source.encode()}}}, llm_handler=lambda _: {"ok":response})
+    engine.vm=direct_vm; engine.install_cross_contract_hook()
+    creator="0x"+"11"*20; applicant="0x"+"22"*20; outsider="0x"+"33"*20
+    try:
+        setup_sdk_paths(Path("contracts/ruleloom_book.py"))
+        direct_deploy("contracts/ruleloom_book.py", _address("warmup"))
+        from genlayer.py.types import Address
+        zero=Address(bytes(20))
+        book_address,_=engine.deploy("contracts/ruleloom_book.py", [zero], sender=creator)
+        pass_address,_=engine.deploy("contracts/ruleloom_pass.py", [Address(bytes.fromhex(book_address[2:]))], sender=creator)
+        engine.call_method(book_address,"bind_passbook",[Address(bytes.fromhex(pass_address[2:]))],sender=creator)
+        bid=engine.call_method(book_address,"create_rulebook",["Alpha","A policy purpose long enough.","Lab",60,0,1,""],sender=creator)
+        engine.call_method(book_address,"add_clause",[bid,"Membership","Applicant must provide public evidence confirming membership in the Alpha Builder program.","REQUIRED","PUBLIC_URL"],sender=creator)
+        definition=engine.call_method(book_address,"seal",[bid],sender=creator)
+        aid=engine.call_method(book_address,"submit_application",[bid,definition,"Alice applies with public Alpha Builder membership evidence.",30,["https://alpha.example/member"]],sender=applicant)
+        eid=engine.call_method(book_address,"evaluate",[aid],sender=applicant)
+        assert engine.call_method(book_address,"get_evaluation",[eid])["decision"] == "ALLOW"
+        with pytest.raises(Exception): engine.call_method(pass_address,"issue_from_evaluation",[eid],sender=outsider)
+        pid=engine.call_method(pass_address,"issue_from_evaluation",[eid],sender=applicant)
+        evaluation=engine.call_method(book_address,"get_evaluation",[eid]); passed=engine.call_method(pass_address,"get_pass",[pid])
+        assert evaluation["issued"] is True and passed["evaluation_id"] == eid and passed["rulebook_id"] == bid
+        assert passed["holder"].lower() == applicant.lower() and passed["definition_hash"] == definition and passed["active"] is True
+        assert engine.call_method(pass_address,"get_pass_by_evaluation",[eid])["id"] == pid
+        assert engine.call_method(pass_address,"active_pass",[bid,applicant]) == pid
+        assert engine.call_method(pass_address,"is_authorized",[bid,applicant]) is True
+        with pytest.raises(Exception): engine.call_method(pass_address,"issue_from_evaluation",[eid],sender=applicant)
+        with pytest.raises(Exception): engine.call_method(book_address,"mark_issued",[eid],sender=outsider)
+    finally:
+        engine._post_queue.clear()
 
 @pytest.fixture
 def book_factory(direct_deploy):
