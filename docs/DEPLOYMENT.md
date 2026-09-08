@@ -34,4 +34,8 @@ The authorized signer created and completed this canonical lifecycle on the froz
 
 Canonical reads verified `SEALED`, `SUBMITTED`, `ALLOW`, pass `#1` active, Book evaluation `issued=true`, `active_pass(1, holder)=1`, and `is_authorized(1, holder)=true`. The grounded finding was `SATISFIED` at source index `0` with literal excerpt `# Ruleloom` from the submitted public HTTPS source.
 
+## Production frontend
+
+Vercel project: `ruleloom`. Production deployment: [ruleloom-psi.vercel.app](https://ruleloom-psi.vercel.app). It is configured with the frozen Book and Passbook public addresses and its homepage, `/new`, `/books`, and `/verify` routes returned HTTP 200. The requested `ruleloom.vercel.app` alias is already in use outside this Vercel scope, so it could not be assigned.
+
 Run `GENLAYER_PRIVATE_KEY=<funded signer> node scripts/deploy-studionet.mjs`. The signer is intentionally never read from, written to, or committed in a repository file.
