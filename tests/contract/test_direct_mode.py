@@ -103,6 +103,66 @@ def test_direct_mocked_exclusion_denies(direct_vm, direct_deploy):
     assert book.get_evaluation(eid)["decision"] == "DENY"
 
 @pytest.mark.direct
+def test_direct_public_url_policy_matches_frontend(direct_deploy):
+    book=direct_deploy("contracts/ruleloom_book.py", _address("pass"))
+    bid=book.create_rulebook("URLs", "A policy purpose long enough.", "Lab", 60, 0, 6, "")
+    book.add_clause(bid,"Evidence","Applicant must provide a public HTTPS evidence URL.","REQUIRED","PUBLIC_URL")
+    definition=book.seal(bid)
+    assert book.submit_application(bid,definition,"A valid application statement.",30,["https://github.com/openai"]) == 1
+    for url in ["https://example.com:444/x","https://éxample.com/x","https://localhost/x","https://10.0.0.1/x","https://bad_host.example/x","https://user@example.com/x","https://example.com/#fragment"]:
+        with pytest.raises(Exception): book.submit_application(bid,definition,"A different valid application statement.",30,[url])
+
+def _timeout_application(direct_vm, direct_deploy):
+    creator=_address("creator"); applicant=_address("applicant"); outsider=_address("outsider")
+    book=direct_deploy("contracts/ruleloom_book.py", _address("pass"))
+    bid=book.create_rulebook("Retries", "A policy purpose long enough.", "Lab", 60, 0, 1, "")
+    book.add_clause(bid,"Identity","Applicant confirms their identity in the statement.","REQUIRED","NONE")
+    definition=book.seal(bid)
+    with direct_vm.prank(applicant): aid=book.submit_application(bid,definition,"Applicant identity statement.",30,[])
+    return book,aid,applicant,outsider
+
+def _make_timeout(book,aid):
+    application=book.get_application(aid)
+    application["evaluation_started_at"]=0
+    book.applications[aid]=json.dumps(application,sort_keys=True,separators=(",",":"))
+
+@pytest.mark.direct
+def test_direct_evaluation_lifecycle_is_applicant_only(direct_vm, direct_deploy):
+    book,aid,applicant,outsider=_timeout_application(direct_vm,direct_deploy)
+    with direct_vm.prank(outsider):
+        with direct_vm.expect_revert("applicant"):
+            book.start_evaluation(aid)
+    application=book.get_application(aid)
+    assert application["status"]=="SUBMITTED" and application["attempt_count"]==0
+    with direct_vm.prank(applicant): book.start_evaluation(aid)
+    application=book.get_application(aid)
+    assert application["status"]=="EVALUATING" and application["attempt_count"]==1
+    _make_timeout(book,aid)
+    with direct_vm.prank(outsider):
+        with direct_vm.expect_revert("applicant"):
+            book.recover_evaluation(aid)
+    application=book.get_application(aid)
+    assert application["status"]=="EVALUATING" and application["attempt_count"]==1
+    with direct_vm.prank(applicant): book.recover_evaluation(aid)
+    assert book.get_application(aid)["status"]=="RETRYABLE"
+    with direct_vm.prank(applicant): book.start_evaluation(aid)
+    assert book.get_application(aid)["status"]=="EVALUATING" and book.get_application(aid)["attempt_count"]==2
+
+@pytest.mark.direct
+def test_direct_evaluation_attempt_exhaustion_requires_applicant(direct_vm, direct_deploy):
+    book,aid,applicant,outsider=_timeout_application(direct_vm,direct_deploy)
+    for attempt in range(1,4):
+        with direct_vm.prank(applicant): book.start_evaluation(aid)
+        assert book.get_application(aid)["attempt_count"]==attempt
+        _make_timeout(book,aid)
+        with direct_vm.prank(outsider):
+            with direct_vm.expect_revert("applicant"):
+                book.recover_evaluation(aid)
+        with direct_vm.prank(applicant): book.recover_evaluation(aid)
+        expected="REVIEW" if attempt==3 else "RETRYABLE"
+        assert book.get_application(aid)["status"]==expected
+
+@pytest.mark.direct
 def test_direct_cross_contract_allow_issues_and_authorizes(direct_vm, direct_deploy):
     source="Alice is an active member of the Alpha Builder program."
     response={"clauses":[{"clause_id":1,"finding":"SATISFIED","source_index":0,"excerpt":source}],"reason":"Public evidence confirms the required membership."}

@@ -18,15 +18,15 @@ def _canonical_url(url):
     try:
         parsed=urlsplit(url); host=parsed.hostname; port=parsed.port
     except (ValueError, TypeError): raise gl.vm.UserError("malformed public https URL")
-    if parsed.scheme!="https" or not parsed.netloc or parsed.username is not None or parsed.password is not None or parsed.fragment or not host or port is not None and not 1<=port<=65535: raise gl.vm.UserError("public https URL required")
+    if parsed.scheme!="https" or not parsed.netloc or parsed.username is not None or parsed.password is not None or parsed.fragment or not host or port is not None: raise gl.vm.UserError("public https URL required")
     host=host.lower().rstrip(".")
     if not host or host in {"localhost","0.0.0.0"} or host.endswith((".localhost",".local")): raise gl.vm.UserError("private URL rejected")
     try:
         address=ipaddress.ip_address(host)
-        if address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_unspecified or getattr(address,"is_site_local",False) or str(address).startswith("100.") and 64<=int(str(address).split(".")[1])<=127: raise gl.vm.UserError("private URL rejected")
+        if address.version!=4 or not address.is_global or str(address).startswith("192.") or str(address).startswith("100.") and 64<=int(str(address).split(".")[1])<=127: raise gl.vm.UserError("private URL rejected")
     except ValueError:
         labels=host.split(".")
-        if len(labels)<2 or any(not label or len(label)>63 or not all(ch.isalnum() or ch=="-" for ch in label) or label[0]=="-" or label[-1]=="-" for label in labels) or len(labels[-1])<2 or labels[-1].isdigit(): raise gl.vm.UserError("public DNS hostname required")
+        if len(labels)<2 or any(not label or len(label)>63 or not all(("a"<=ch<="z") or ("A"<=ch<="Z") or ("0"<=ch<="9") or ch=="-" for ch in label) or label[0]=="-" or label[-1]=="-" for label in labels) or len(labels[-1])<2 or labels[-1].isdigit(): raise gl.vm.UserError("public DNS hostname required")
     return url.rstrip("/")
 
 @gl.contract_interface
@@ -140,12 +140,14 @@ class RuleloomBook(gl.Contract):
     @gl.public.write
     def start_evaluation(self,application_id:u256)->None:
         a=_load(self.applications[application_id]); b=self._book(u256(a["rulebook_id"]))
+        if str(gl.message.sender_address).lower()!=a["applicant"].lower(): raise gl.vm.UserError("applicant only")
         if a["status"] not in {"SUBMITTED","RETRYABLE"} or b["status"]!="SEALED" or a["definition_hash"]!=b["definition_hash"]: raise gl.vm.UserError("stale or unavailable application")
         if a["attempt_count"]>=MAX_EVALUATION_ATTEMPTS: raise gl.vm.UserError("evaluation attempts exhausted")
         a["status"]="EVALUATING"; a["attempt_count"]+=1; a["evaluation_started_at"]=_now(); a["failure_reason"]=""; self.applications[application_id]=_put(a)
     @gl.public.write
     def recover_evaluation(self,application_id:u256)->None:
         a=_load(self.applications[application_id])
+        if str(gl.message.sender_address).lower()!=a["applicant"].lower(): raise gl.vm.UserError("applicant only")
         if a["status"]!="EVALUATING" or _now()<a["evaluation_started_at"]+EVALUATION_TIMEOUT: raise gl.vm.UserError("evaluation is not recoverable yet")
         a["status"]="RETRYABLE" if a["attempt_count"]<MAX_EVALUATION_ATTEMPTS else "REVIEW"; a["failure_reason"]="evaluation timed out before finalization"; self.applications[application_id]=_put(a)
     @gl.public.write
