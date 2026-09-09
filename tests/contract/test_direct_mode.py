@@ -109,7 +109,8 @@ def test_direct_public_url_policy_matches_frontend(direct_deploy):
     book.add_clause(bid,"Evidence","Applicant must provide a public HTTPS evidence URL.","REQUIRED","PUBLIC_URL")
     definition=book.seal(bid)
     assert book.submit_application(bid,definition,"A valid application statement.",30,["https://github.com/openai"]) == 1
-    for url in ["https://example.com:444/x","https://éxample.com/x","https://localhost/x","https://10.0.0.1/x","https://bad_host.example/x","https://user@example.com/x","https://example.com/#fragment"]:
+    assert book.submit_application(bid,definition,"Another valid application statement.",30,["https://8.8.8.8/"]) == 2
+    for url in ["https://example.com:444/x","https://éxample.com/x","https://localhost/x","https://10.0.0.1/x","https://192.0.2.1/x","https://198.51.100.1/x","https://203.0.113.1/x","https://224.0.0.1/x","https://bad_host.example/x","https://user@example.com/x","https://example.com/#fragment"]:
         with pytest.raises(Exception): book.submit_application(bid,definition,"A different valid application statement.",30,[url])
 
 def _timeout_application(direct_vm, direct_deploy):

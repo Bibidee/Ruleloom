@@ -23,7 +23,7 @@ def _canonical_url(url):
     if not host or host in {"localhost","0.0.0.0"} or host.endswith((".localhost",".local")): raise gl.vm.UserError("private URL rejected")
     try:
         address=ipaddress.ip_address(host)
-        if address.version!=4 or not address.is_global or str(address).startswith("192.") or str(address).startswith("100.") and 64<=int(str(address).split(".")[1])<=127: raise gl.vm.UserError("private URL rejected")
+        if address.version!=4 or not address.is_global or str(address).startswith("100.") and 64<=int(str(address).split(".")[1])<=127: raise gl.vm.UserError("private URL rejected")
     except ValueError:
         labels=host.split(".")
         if len(labels)<2 or any(not label or len(label)>63 or not all(("a"<=ch<="z") or ("A"<=ch<="Z") or ("0"<=ch<="9") or ch=="-" for ch in label) or label[0]=="-" or label[-1]=="-" for label in labels) or len(labels[-1])<2 or labels[-1].isdigit(): raise gl.vm.UserError("public DNS hostname required")
